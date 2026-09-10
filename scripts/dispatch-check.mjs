@@ -1,11 +1,21 @@
 // scripts/dispatch-check.mjs - smoke test for command dispatch: connects with the real token but stubs bot.reply, so nothing posts to the room.
 // Run: node scripts/dispatch-check.mjs
 
-import { WavezBot } from "../lib/bot.js";
+import { WavezBot, chunks } from "../lib/bot.js";
 import muteSweep from "../events/muteSweep.js";
 import assert from "node:assert";
 
 process.loadEnvFile(new URL("../.env", import.meta.url));
+// chunks() is bypassed by the reply stub below, so it gets checked directly.
+assert.deepEqual(chunks("short"), ["short"], "under the limit stays one message");
+assert.deepEqual(chunks(""), [], "empty sends nothing");
+assert.deepEqual(chunks("a b c", 3), ["a b", "c"], "splits on a space, drops it");
+assert.deepEqual(chunks("aaaaa", 3), ["aaa", "aa"], "oversized single word is hard cut");
+const long = Array.from({ length: 40 }, (_, i) => `cmd${i}`).join(" ");
+assert.ok(chunks(long, 60).every((c) => c.length <= 60), "no chunk exceeds the limit");
+assert.equal(chunks(long, 20).length, 4, "runaway reply is capped at 4 messages");
+assert.ok(chunks(long, 20).at(-1).endsWith("..."), "a capped reply says it was cut");
+
 const bot = new WavezBot({
   baseURL: process.env.WAVEZ_API_URL ?? "https://api.wavez.fm",
   botToken: process.env.WAVEZ_BOT_TOKEN,
