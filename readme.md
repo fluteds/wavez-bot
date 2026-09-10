@@ -124,7 +124,7 @@ The titles are exactly what the API returns, lower-cased. `ambassador` and `subs
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `prefix` | `"!"` | Command prefix; falls back to the room's bot setting |
-| `locale` | `"en-US"` | API error language, which is pt-BR unless set |
+| `locale` | `"en-US"` | API error language; sent as `Accept-Language`, and pt-BR unless set |
 | `replyMode` | `"none"` | `"mention"` prefixes `@sender`, `"reply"` threads onto their message |
 | `startup` | see file | Posted to chat once the bot is answering; `{name}` is the bot, `null` disables it |
 | `welcome` | see file | Greeting on join; `{name}` is the joiner, `null` disables it |
@@ -180,3 +180,4 @@ Use `"packet"` to see every packet. There is no `"*"` wildcard.
 - There is no track-change packet for a bot token. `room_state_snapshot` is the only signal, and it also arrives on connect and on room setting changes, so [events/trackChanged.js](events/trackChanged.js) treats a new `trackId` as the change. Its `playback` block names the DJ `djId`/`djUsername`, where the REST queue says `currentDjId`/`currentDjUsername`.
 - Escort counts plays a DJ *completes*, so running `!escort` mid-track means that track counts. Bookings and play history live in `data/state.json`, so they survive a restart.
 - Vote counts arrive only over the socket, so `!score` and `!votes` read empty after a restart until the next vote packet lands. `!top` stores whatever tally was cached when a track ended, which is that track's unless a packet lands out of order.
+- The SDK's `locale` only translates its own messages, so server errors arrive in pt-BR until `Accept-Language` is set on the client, which is why the config value is passed in both places.
