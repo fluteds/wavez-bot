@@ -1,0 +1,18 @@
+{
+  "prefix": "!",
+  "locale": "en-US",
+  "replyMode": "none",
+  "startup": "{name} is awake - {prefix}help for commands",
+  "welcome": "welcome in, {name} - grab a seat, {prefix}help if you need it",
+  "rules": [
+    "be decent",
+    "no back to back dupes",
+    "!escort out if you are going quiet"
+  ],
+  "theme": "",
+  "allowPlatformRoles": true,
+  "platformRoles": {
+    "admin": "manager",
+    "ambassador": "bouncer"
+  }
+}

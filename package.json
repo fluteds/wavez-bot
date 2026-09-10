@@ -1,0 +1,23 @@
+{
+  "name": "wavez-bot",
+  "version": "1.0.0",
+  "description": "A chat and moderation bot for Wavez.fm rooms",
+  "scripts": {
+    "start": "node index.js",
+    "check": "node scripts/dispatch-check.mjs"
+  },
+  "keywords": [
+    "wavez",
+    "wavezfm",
+    "bot"
+  ],
+  "author": "fluteds",
+  "license": "ISC",
+  "dependencies": {
+    "@wavezfm/api": "^0.3.0"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  }
+}
