@@ -1,7 +1,7 @@
 {
   "prefix": "!",
   "locale": "en-US",
-  "replyMode": "none",
+  "replyMode": "mention",
   "startup": "{name} is awake - {prefix}help for commands",
   "welcome": "welcome in, {name} - grab a seat, {prefix}help if you need it",
   "rules": [
