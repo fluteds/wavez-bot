@@ -1,6 +1,5 @@
 import { get } from "../../lib/store.js";
 
-// woots minus mehs, not a percentage: a 1/1 track should not outrank a 30/2 one.
 const net = (t) => (t.woots ?? 0) - (t.mehs ?? 0);
 
 export default {

@@ -1,9 +1,10 @@
 {
   "name": "wavez-bot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A chat and moderation bot for Wavez.fm rooms",
   "scripts": {
     "start": "node index.js",
+    "test": "node tests/roles.test.js && node tests/store.test.js",
     "check": "node scripts/dispatch-check.mjs"
   },
   "keywords": [

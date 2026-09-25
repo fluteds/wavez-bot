@@ -1,13 +1,3 @@
-// commands/index.js - loads every .js under commands/ recursively (excluding itself), registering each by name and aliases.
-// A command module default-exports:
-//   name: string - primary trigger, without the prefix
-//   aliases?: string[] - alternative triggers
-//   description?: string - shown in !help
-//   usage?: string - shown in !help <command>
-//   cooldown?: number - per-user cooldown in ms, default 3000
-//   minRole?: string - minimum room role, see ROLES below
-//   execute(ctx): Promise<string | void> - a returned string is sent as a reply
-
 import { readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -15,8 +5,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_COOLDOWN = 3000;
 
-// Ascending authority
 export const ROLES = ["user", "resident_dj", "bouncer", "manager", "cohost", "host"];
+const RANKS = new Map(ROLES.map((role, index) => [role, index]));
+
+export const isRole = (role) => RANKS.has(role);
+
+export const actorRank = (role) => RANKS.get(role) ?? -1;
+export const targetRank = (role) => RANKS.get(role) ?? ROLES.length;
 
 async function walk(dir) {
   const out = [];
@@ -34,12 +29,14 @@ export async function loadCommands() {
   for (const path of await walk(HERE)) {
     const mod = (await import(pathToFileURL(path).href)).default;
     if (!mod?.name || typeof mod.execute !== "function") { console.warn(`skipping ${path}: no name/execute`); continue; }
+    if (mod.minRole != null && !isRole(mod.minRole)) throw new Error(`${path}: minRole "${mod.minRole}" is not a role. Use one of: ${ROLES.join(", ")}`);
     mod.category = dirname(path).split("/").pop();
     mod.cooldown ??= DEFAULT_COOLDOWN;
     commands.push(mod);
     for (const trigger of [mod.name, ...(mod.aliases ?? [])]) {
-      if (registry.has(trigger)) console.warn(`duplicate trigger "${trigger}" in ${path}`);
-      registry.set(trigger.toLowerCase(), mod);
+      const key = trigger.toLowerCase();
+      if (registry.has(key)) throw new Error(`${path}: trigger "${key}" is already registered by ${registry.get(key).name}`);
+      registry.set(key, mod);
     }
   }
   return { registry, commands };
@@ -54,8 +51,11 @@ export function onCooldown(command, userId) {
   return false;
 }
 
-// Every mod action announces a reason, stated or not.
 export const withReason = (text, reason) => `${text} reason: ${reason || "no reason"}`;
 
-export const meetsRole = (command, role) =>
-  !command.minRole || ROLES.indexOf(role ?? "user") >= ROLES.indexOf(command.minRole);
+export function meetsRole(command, role) {
+  const minRole = command.minRole;
+  if (minRole == null) return true;
+  if (!isRole(minRole)) { console.error(`refusing ${command.name ?? "command"}: minRole "${minRole}" is not a role`); return false; }
+  return actorRank(role ?? "user") >= actorRank(minRole);
+}

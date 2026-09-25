@@ -1,6 +1,5 @@
 import { get, set } from "../lib/store.js";
 
-// One pass over every chat message: it feeds !seen, and an afk user who talks is back.
 export default {
   event: "message_created",
   handler: (payload) => {
@@ -11,7 +10,7 @@ export default {
 
     const afk = get("afk") ?? {};
     const entry = afk[payload.userId];
-    if (!entry || entry.messageId === payload.id) return; // the !afk itself arrives here too
+    if (!entry || entry.messageId === payload.id) return;
     delete afk[payload.userId];
     set("afk", afk);
   },

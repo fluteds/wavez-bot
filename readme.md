@@ -21,7 +21,9 @@ npm start
 
 You might want to run `nvm install 22` if your node versions do not align with the current node your device is running.
 
-`npm run check` connects with the real token but stubs `bot.reply`, so it exercises dispatch without posting to the room.
+`npm test` needs no token and touches nothing: it covers the permission ladder (every role against every gate, and what happens to a role that is not on the ladder) and `data/state.json` (first run, round trip, a corrupt file, a failed write) against throwaway files.
+
+`npm run check` connects with the real token but stubs `bot.reply`, so it exercises dispatch without posting to the room. It rewrites `data/state.json` as it goes, so back that up first if the room has been running.
 
 ## Commands
 
@@ -106,6 +108,8 @@ Every mod command takes an optional trailing reason, which is echoed in the repl
 
 Roles ascend `user < resident_dj < bouncer < manager < cohost < host`. On top of `minRole`, no one can act on the bot, on a peer, or on anyone above them.
 
+That list is the whole vocabulary. A `minRole` naming anything else stops the bot at startup with the offending file and the valid names, because the alternative is a gate that silently lets everyone through. A role the bot does not recognise on a *person* fails the other way: it grants nothing, and it cannot be kicked, banned, or muted by anyone, so a role renamed upstream never becomes an opening. It is logged once when first seen.
+
 Platform-wide titles are a separate field, `platformRole` / `platformRoles`, and mean nothing to that ladder on their own: an admin or ambassador with no room role is a `user` as far as the room is concerned. `platformRoles` in the config maps them onto the ladder, and `allowPlatformRoles` turns the mapping off without deleting it:
 
 ```json
@@ -113,7 +117,7 @@ Platform-wide titles are a separate field, `platformRole` / `platformRoles`, and
 "platformRoles": { "admin": "manager", "ambassador": "bouncer" }
 ```
 
-Whichever role is higher wins, so an ambassador who is also the host stays host and nobody is demoted by the mapping. It applies to targets as well as senders, so a plain bouncer cannot kick an ambassador. A title that is not in the map, or one mapped to something that is not on the ladder, is ignored.
+Whichever role is higher wins, so an ambassador who is also the host stays host and nobody is demoted by the mapping. It applies to targets as well as senders, so a plain bouncer cannot kick an ambassador. A title that is not in the map is ignored; a title mapped to something that is not on the ladder is a startup error, since a mapping that quietly does nothing looks exactly like one that works. Mapping can only lend authority to a room role the bot already ranks, never invent one for a room role it does not.
 
 The titles are exactly what the API returns, lower-cased. `ambassador` and `subscriber` are confirmed from a live room, and bot accounts come back as `bot`; `admin` is in the default map but has not been seen on a real account here, so check the spelling with `!user <name>` before relying on it, which now prints whatever titles that account holds.
 
@@ -177,6 +181,7 @@ Use `"packet"` to see every packet. There is no `"*"` wildcard.
 - `bot.users` keeps people who have left, on purpose, so you can still ban someone who just walked out. That also means `!mods` lists staff seen recently rather than staff present now, and with `allowPlatformRoles` on it lists anyone whose mapped title reaches bouncer.
 - Bot accounts have no public profile, so `!user` on one 404s like an unknown name and answers `no profile for <name>`. Any other API failure still throws and is logged.
 - State that outlives a restart lives in `data/state.json` via `lib/store.js`: AFK flags, who last spoke and played, escort bookings, the last 20 finished tracks behind `!history`, `!dupe`, and `!top`, and the canned replies from `!addcmd`.
+- Every write goes to a temp file beside it and is renamed over the top, so a crash mid-save leaves either the old state or the new one, never half a file. A missing file is a first run. A file that is not valid JSON stops the bot and says so, leaving the file untouched: it is somebody's macro list and history, and starting over with an empty store would throw it away without a word. Move it aside yourself if that is what you want.
 - There is no track-change packet for a bot token. `room_state_snapshot` is the only signal, and it also arrives on connect and on room setting changes, so [events/trackChanged.js](events/trackChanged.js) treats a new `trackId` as the change. Its `playback` block names the DJ `djId`/`djUsername`, where the REST queue says `currentDjId`/`currentDjUsername`.
 - Escort counts plays a DJ *completes*, so running `!escort` mid-track means that track counts. Bookings and play history live in `data/state.json`, so they survive a restart.
 - Vote counts arrive only over the socket, so `!score` and `!votes` read empty after a restart until the next vote packet lands. `!top` stores whatever tally was cached when a track ended, which is that track's unless a packet lands out of order.

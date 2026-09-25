@@ -1,6 +1,5 @@
 import { fill } from "../lib/bot.js";
 
-// A flaky connection rejoins; the room does not need to hear about it twice.
 const GREET_COOLDOWN = 10 * 60_000;
 const greeted = new Map();
 
@@ -9,7 +8,7 @@ export default {
   handler: (payload, bot) => {
     bot.trackUser(payload);
     const template = bot.config.welcome;
-    if (!template) return; // no welcome in config means no welcome
+    if (!template) return;
     const user = bot.users.get(String(payload.userId ?? payload.user_id ?? payload.id ?? ""));
     if (!user || user.isBot) return;
     const now = Date.now();

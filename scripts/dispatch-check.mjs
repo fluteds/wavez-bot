@@ -1,12 +1,8 @@
-// scripts/dispatch-check.mjs - smoke test for command dispatch: connects with the real token but stubs bot.reply, so nothing posts to the room.
-// Run: node scripts/dispatch-check.mjs
-
 import { WavezBot, chunks } from "../lib/bot.js";
 import muteSweep from "../events/muteSweep.js";
 import assert from "node:assert";
 
 process.loadEnvFile(new URL("../.env", import.meta.url));
-// chunks() is bypassed by the reply stub below, so it gets checked directly.
 assert.deepEqual(chunks("short"), ["short"], "under the limit stays one message");
 assert.deepEqual(chunks(""), [], "empty sends nothing");
 assert.deepEqual(chunks("a b c", 3), ["a b", "c"], "splits on a space, drops it");
@@ -24,7 +20,7 @@ const bot = new WavezBot({
 });
 
 const sent = [];
-bot.reply = async (content) => { sent.push(content); }; // stubbed before start(), so the startup line never reaches the room either
+bot.reply = async (content) => { sent.push(content); };
 await bot.start();
 assert.deepEqual(sent, [`${bot.state.bot.name} is awake - !help for commands`], "start() announces itself, placeholders filled");
 bot.votes = { woots: 3, grabs: 1, mehs: 0 };
@@ -48,7 +44,6 @@ assert.match(await run("!roll 2 3"), /rolled [23] \(2-3\)/, "roll honours a rang
 assert.equal(await run("!votes"), "3 woots, 1 grabs, 0 mehs");
 for (const quiet of ["!nope", "hello", "!", "!!ping"]) assert.equal(await run(quiet), null, `${quiet} stays silent`);
 
-// Fun: deterministic where it can be, shape-checked where it cannot.
 assert.match(await run("!coin"), /^(heads|tails)$/);
 assert.equal(await run("!choose only"), "usage: !choose a | b | c", "one option is not a choice");
 assert.equal(await run("!choose a | a"), "a", "pipes split");
@@ -56,7 +51,6 @@ assert.equal(await run("!choose tea, tea"), "tea", "commas split when no pipe is
 assert.equal(await run("!choose a b | a b"), "a b", "options keep their spaces");
 assert.match(await run("!vibe"), /^vibe: \S/);
 
-// Track info. The room is live, so assert on shape, not on a particular track.
 assert.match(await run("!time"), /nothing playing|no clock on this one|\d+:\d\d/);
 assert.match(await run("!next"), /up next: |queue is empty|nobody behind/);
 assert.equal(await run("!score"), "100% woots (3/3) - room is glowing", "grabs stay out of the ratio");
@@ -68,12 +62,10 @@ bot.votes = null;
 assert.equal(await run("!score"), "no votes counted yet");
 bot.votes = { woots: 3, grabs: 1, mehs: 0 };
 
-// Mod commands: stub the socket so no real kick/ban leaves the process.
 const modCalls = [];
 bot.mod = (event, payload) => { modCalls.push([event, payload]); };
 bot.users.set("v1", { userId: "v1", username: "victim", displayName: "Victim", role: "user" });
 bot.users.set("h1", { userId: "h1", username: "bigcheese", displayName: "Big Cheese", role: "host" });
-// A fresh id each time, otherwise the per-user cooldown swallows the second call.
 const asBouncer = () => ({ username: "modder", roomRole: "bouncer" });
 
 assert.match(await run("!kick victim", asBouncer()), /^kicked Victim reason: no reason$/);
@@ -95,7 +87,6 @@ assert.deepEqual(modCalls.at(-1), ["kick_user", { targetUserId: "s1", reason: "s
 assert.match(await run("!skip", asBouncer()), /^skipped reason: no reason$/);
 assert.deepEqual(modCalls.at(-1), ["skip", undefined]);
 
-// Durations: minutes on the wire for ban, milliseconds for mute.
 const asManager = () => ({ username: "boss", roomRole: "manager" });
 assert.match(await run("!ban victim 2h spamming", asManager()), /^banned Victim for 2h reason: spamming/);
 assert.deepEqual(modCalls.at(-1), ["ban_user", { targetUserId: "v1", duration: 120, reason: "spamming" }]);
@@ -110,7 +101,6 @@ assert.match(await run("!mute victim", asBouncer()), /^muted Victim reason: no r
 assert.equal(modCalls.at(-1)[1].durationMs, undefined);
 bot.muted.clear();
 
-// The mute sweep, with the delete stubbed so no real message is touched.
 const deleted = [];
 bot.api.roomBot.deleteMessage = async (roomId, messageId) => { deleted.push(messageId); };
 bot.muted.set("v1", Date.now() + 60_000);
@@ -123,13 +113,11 @@ await muteSweep.handler({ id: "m12", userId: "v1" }, bot);
 assert.deepEqual(deleted, ["m9"], "an expired mute stops sweeping");
 bot.muted.clear();
 
-// Queue control. The room is live, so !remove only reports; nothing is sent unless queued.
 assert.match(await run("!move victim 3", asBouncer()), /^moved Victim to 3 reason: no reason$/);
 assert.deepEqual(modCalls.at(-1), ["reorder_queue", { targetUserId: "v1", toPosition: 2 }]);
 assert.match(await run("!move victim 0", asBouncer()), /position must be 1/);
 assert.match(await run("!remove victim", asBouncer()), /not in the queue/);
 
-// Reasons: on the wire where the server takes one, in the reply everywhere else.
 assert.match(await run("!move victim 2 stop hogging", asBouncer()), /^moved Victim to 2 reason: stop hogging$/);
 assert.match(await run("!skip too long", asBouncer()), /^skipped reason: too long$/);
 assert.match(await run("!skip", asBouncer()), /^skipped reason: no reason$/, "an unstated reason says so");
@@ -141,18 +129,15 @@ assert.match(await run('!kick "Slow Poke" way too slow', asBouncer()), /^kicked 
 assert.equal(modCalls.at(-1)[1].reason, "way too slow", "kick_user does carry one");
 bot.muted.clear();
 
-// Room social. bot.users is already seeded with a host and a plain user by the mod checks above.
 assert.match(await run("!mods"), /Big Cheese \(host\)/, "staff are listed, highest role first");
 assert.doesNotMatch(await run("!mods"), /Victim/, "a plain user is not staff");
 
-// Queue position. Nobody in this check is queued, so the miss path is the one that is live.
 assert.match(await run("!position victim"), /^Victim is not in the queue$/);
 assert.match(await run("!position nobody"), /^no nobody in the room$/);
 assert.match(await run("!position"), /you are |no  in the room/, "no argument means the sender");
 
-// AFK round-trip, including the clear that fires when the afk user next speaks.
 const { get: getState, set: setState } = await import("../lib/store.js");
-setState("afk", {}); // the store is a real file, so a previous run must not decide this one
+setState("afk", {});
 const activity = (await import("../events/activity.js")).default;
 assert.equal(await run("!afk making tea", { userId: "afk1", username: "sleepy" }), "sleepy is afk: making tea");
 assert.equal(getState("afk").afk1.reason, "making tea");
@@ -162,17 +147,14 @@ activity.handler({ userId: "afk1", id: "later" }, bot);
 assert.equal(getState("afk").afk1, undefined, "the next message clears it");
 assert.equal(await run("!afk", { userId: "afk2", username: "sleepy" }), "sleepy is afk", "a reason is optional");
 assert.match(await run("!users"), /afk: sleepy/, "!users surfaces who is away");
-// Toggling back goes straight at the module: a second !afk from one user inside 3s is eaten by the cooldown.
 const afkCommand = (await import("../commands/info/afk.js")).default;
 assert.equal(afkCommand.execute({ rawArgs: "", sender: { userId: "afk2", username: "sleepy" }, messageId: "m2" }), "welcome back, sleepy", "!afk toggles back");
 assert.doesNotMatch(await run("!users"), /afk:/, "and drops out of !users");
 
-// Guards: same user twice inside the cooldown, and the bot's own messages.
 await bot.handleMessage({ content: "!ping", userId: "cd", username: "t" });
 assert.equal(await run("!ping", { userId: "cd" }), null, "per-user cooldown holds");
 assert.equal(await run("!ping", { botId: "b1" }), null, "bot ignores itself");
 
-// Track changes. room_state_snapshot is the only signal, so a repeat trackId must be ignored.
 const trackChanged = (await import("../events/trackChanged.js")).default;
 setState("played", {});
 setState("escorts", {});
@@ -188,7 +170,6 @@ trackChanged.handler(snapshot("t2", "dj2", "Second"), bot);
 assert.equal(getState("played").dj1.title, "First", "the dj who just finished is credited, not the new one");
 assert.equal(bot.nowPlaying.trackId, "t2");
 
-// Escort: counts down completed plays, then pulls them out of the queue.
 sent.length = 0;
 setState("escorts", { dj2: { name: "Spinner", playsLeft: 2 } });
 trackChanged.handler(snapshot("t3", "dj3", "Third"), bot);
@@ -202,9 +183,7 @@ assert.deepEqual(sent, ["escorted Spinner out of the queue"]);
 trackChanged.handler(snapshot("t5", "dj5", "Fifth"), bot);
 assert.equal(modCalls.length, 1, "a cleared booking does not fire twice");
 
-// History, and the two commands that read it. Votes are whatever was cached when the track ended.
 setState("history", []);
-// The tally standing when the next snapshot lands belongs to the track that just ended, so it is set before the packet that ends it.
 bot.votes = { woots: 1, mehs: 4 };
 trackChanged.handler(snapshot("t6", "dj6", "Sixth"), bot);
 bot.votes = { woots: 5, mehs: 0 };
@@ -226,7 +205,6 @@ assert.equal(await run("!history"), "nothing has finished yet");
 assert.equal(await run("!top"), "nothing rated yet");
 bot.votes = { woots: 3, grabs: 1, mehs: 0 };
 
-// !bail: self-service !remove, no role needed, and it cancels an escort booking on the way out.
 modCalls.length = 0;
 const realQueue = bot.queue.bind(bot);
 bot.queue = async () => ({ queueUserIds: ["bail1"] });
@@ -240,7 +218,6 @@ assert.equal(modCalls.length, 0, "nothing sent for someone who is not queued");
 bot.queue = realQueue;
 assert.match(await run("!djs"), /queue is empty|(now|\d+)\. /, "the lineup lists positions");
 
-// Config text: absent keys answer rather than going silent.
 assert.equal(await run("!rules"), "no rules set");
 assert.equal(await run("!theme"), "no theme set, play what you like");
 bot.config.rules = ["be decent", "no dupes"];
@@ -248,7 +225,6 @@ bot.config.theme = "slow ones";
 assert.equal(await run("!rules"), "be decent | no dupes");
 assert.equal(await run("!theme"), "slow ones");
 
-// !seen reads both halves.
 setState("spoke", { v1: Date.now() - 90 * 60_000 });
 setState("played", { v1: { name: "Victim", title: "Blue Veins", artist: "Ash Walker", at: Date.now() - 5 * 60_000 } });
 assert.equal(await run("!seen victim"), "Victim: spoke 2h ago, played Blue Veins - Ash Walker 5m ago");
@@ -259,12 +235,10 @@ assert.equal(await run("!seen victim"), "nothing on Victim yet");
 assert.equal(await run("!seen nobody"), "no nobody in the room");
 assert.match(await run("!seen"), /^usage: !seen/);
 
-// activity.js records who spoke, on top of clearing afk.
 activity.handler({ userId: "talker", id: "m99", content: "hey" }, bot);
 assert.ok(getState("spoke").talker, "a chat message is remembered for !seen");
 activity.handler({ userId: "talker", id: "m98", botId: "b1" }, bot);
 
-// Welcome message. bot.reply is already stubbed, so nothing reaches the room.
 const userJoined = (await import("../events/userJoined.js")).default;
 bot.config.welcome = "welcome in, {name} - {prefix}help if you need it";
 sent.length = 0;
@@ -278,7 +252,6 @@ bot.config.welcome = null;
 userJoined.handler({ userId: "new2", username: "quiet" }, bot);
 assert.equal(sent.length, 1, "no welcome configured means silence");
 
-// Canned replies: manager-gated to write, anyone to fire, and never able to shadow a real command.
 setState("macros", {});
 assert.match(await run("!addcmd", asManager()), /^usage: !addcmd/);
 assert.match(await run("!addcmd fomo", asManager()), /^usage: !addcmd/, "a trigger with no text is not a command");
@@ -305,7 +278,6 @@ assert.match(await run("!delcmd", asManager()), /^usage: !delcmd/);
 assert.doesNotMatch(await run("!help"), /canned:/, "the heading goes away with the last one");
 setState("macros", {});
 
-// Platform titles mapped onto the room ladder. The room role and the mapped one both count, higher wins.
 assert.equal(bot.effectiveRole({ roomRole: "user", platformRole: "ambassador" }), "bouncer", "an ambassador borrows bouncer");
 assert.equal(bot.effectiveRole({ roomRole: "user", platformRoles: ["subscriber", "admin"] }), "manager", "the highest mapped title wins");
 assert.equal(bot.effectiveRole({ roomRole: "host", platformRole: "ambassador" }), "host", "a room role above the mapping is not demoted");
@@ -316,25 +288,21 @@ bot.config.platformRoles = { ambassador: "overlord" };
 assert.equal(bot.effectiveRole({ roomRole: "user", platformRole: "ambassador" }), "user", "a mapping to a role that is not on the ladder is ignored");
 bot.config.platformRoles = { admin: "manager", ambassador: "bouncer" };
 
-// Through dispatch: the mapping is what actually gates a command.
 modCalls.length = 0;
 assert.match(await run("!kick victim", { username: "amb", roomRole: "user", platformRole: "ambassador" }), /^kicked Victim/, "an ambassador can moderate");
 assert.equal(await run("!ban victim", { username: "amb2", roomRole: "user", platformRole: "ambassador" }), null, "but bouncer is where it stops");
 assert.match(await run("!addcmd fromadmin hello", { username: "adm", roomRole: "user", platformRole: "admin" }), /^added !fromadmin/, "an admin gets manager");
 setState("macros", {});
 
-// The toggle: off means the room role is the only thing that counts.
 bot.config.allowPlatformRoles = false;
 assert.equal(bot.effectiveRole({ roomRole: "user", platformRole: "admin" }), "user");
 assert.equal(await run("!kick victim", { username: "amb3", roomRole: "user", platformRole: "ambassador" }), null, "no borrowed role, no kick");
 bot.config.allowPlatformRoles = true;
 
-// Targets get the same treatment, so a plain bouncer cannot kick an ambassador.
 bot.users.set("a1", { userId: "a1", username: "amber", displayName: "Amber", role: bot.effectiveRole({ roomRole: "user", platformRole: "ambassador" }) });
 assert.match(await run("!kick amber", asBouncer()), /outranks you/, "a peer by mapped role is still a peer");
 bot.users.delete("a1");
 
-// A trailing role name gates the canned reply; quotes keep text that happens to end in one.
 setState("macros", {});
 assert.equal(await run("!addcmd test \"testing text\" manager", asManager()), "added !test for manager and above");
 assert.deepEqual(getState("macros").test, { text: "testing text", minRole: "manager" }, "the quotes are stripped, the role is not stored as text");
@@ -347,13 +315,11 @@ assert.deepEqual(getState("macros").shout, { text: "the host", minRole: null });
 assert.equal(await run("!shout", { userId: "g4", username: "punter", roomRole: "user" }), "the host", "and anyone can fire it");
 assert.equal(await run("!addcmd bare the host", asManager()), "added !bare for host and above", "unquoted, the last word is read as the gate");
 assert.equal(getState("macros").bare.text, "the");
-// The platform mapping feeds the same role check, so a borrowed bouncer clears a bouncer gate.
 assert.equal(await run("!addcmd staffonly hello bouncer", asManager()), "added !staffonly for bouncer and above");
 assert.equal(await run("!staffonly", { userId: "g5", username: "amb", roomRole: "user", platformRole: "ambassador" }), "hello", "an ambassador clears a bouncer gate");
 bot.config.allowPlatformRoles = false;
 assert.equal(await run("!staffonly", { userId: "g6", username: "amb", roomRole: "user", platformRole: "ambassador" }), null, "with the toggle off it does not");
 bot.config.allowPlatformRoles = true;
-// Entries written before the gate existed are bare strings and still answer.
 setState("macros", { legacy: "still here" });
 assert.equal(await run("!legacy", { userId: "g7" }), "still here");
 assert.match(await run("!help legacy"), /^!legacy - canned reply: still here$/);

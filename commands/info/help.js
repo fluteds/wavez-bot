@@ -15,7 +15,6 @@ export default {
       if (!cmd) return canned ? `${prefix}${name} - canned reply: ${canned.text}${canned.minRole ? ` (${canned.minRole} and above)` : ""}` : `no such command: ${wanted}`;
       return `${prefix}${cmd.name} - ${cmd.description ?? "no description"}${cmd.usage ? ` | usage: ${cmd.usage}` : ""}`;
     }
-    // Grouped by folder, so !help stays readable as commands/ grows.
     const byCategory = Object.groupBy(bot.commands, (c) => c.category);
     const groups = Object.entries(byCategory).map(([cat, cmds]) => `${cat}: ${cmds.map((c) => prefix + c.name).join(" ")}`);
     const macros = Object.keys(get("macros") ?? {});

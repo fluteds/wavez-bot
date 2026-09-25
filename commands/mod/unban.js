@@ -9,7 +9,6 @@ export default {
   async execute({ api, bot, rawArgs }) {
     const { name, rest: reason } = bot.parseTarget(rawArgs);
     if (!name) return "name someone";
-    // a banned user may have aged out of the cache, so fall back to a raw id.
     const userId = bot.findUser(name)?.userId ?? name;
     try {
       await api.roomBot.unban(bot.roomId, String(userId));

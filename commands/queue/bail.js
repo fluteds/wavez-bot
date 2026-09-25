@@ -10,7 +10,7 @@ export default {
     if (!queueUserIds.includes(sender.userId)) return "you are not in the queue";
     bot.mod("remove_from_queue", { targetUserId: sender.userId });
     const escorts = get("escorts") ?? {};
-    if (escorts[sender.userId]) { delete escorts[sender.userId]; set("escorts", escorts); } // leaving cancels the booking, or it fires on some later play
+    if (escorts[sender.userId]) { delete escorts[sender.userId]; set("escorts", escorts); }
     return `${sender.displayName ?? sender.username} bailed out of the queue`;
   },
 };

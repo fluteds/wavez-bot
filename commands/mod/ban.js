@@ -10,7 +10,7 @@ export default {
   execute({ bot, rawArgs, sender }) {
     const { user, rest, error } = bot.resolveTarget(sender, rawArgs);
     if (error) return error;
-    const { minutes, label, reason } = splitDuration(rest); // the ban payload counts in minutes
+    const { minutes, label, reason } = splitDuration(rest);
     bot.mod("ban_user", { targetUserId: user.userId, ...(minutes && { duration: minutes }), ...(reason && { reason }) });
     return withReason(`banned ${user.displayName ?? user.username}${label ? ` for ${label}` : ""}`, reason);
   },

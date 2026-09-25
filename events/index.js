@@ -1,6 +1,3 @@
-// events/index.js - loads every .js in events/ (excluding itself). Each module default-exports { event: string, handler(payload, bot): void }.
-// `event` is the socket packet name; use "packet" for every packet. There is no "*" wildcard.
-
 import { readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";

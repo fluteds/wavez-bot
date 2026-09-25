@@ -12,7 +12,6 @@ export default {
     if (error) return error;
     const { minutes, label, reason } = splitDuration(rest);
     const ms = minutes ? minutes * 60_000 : 0;
-    // mute_user takes no reason field, so it only reaches the room through the reply.
     bot.mod("mute_user", { targetUserId: user.userId, ...(ms && { durationMs: ms }) });
     bot.muted.set(user.userId, ms ? Date.now() + ms : Infinity);
     return withReason(`muted ${user.displayName ?? user.username}${label ? ` for ${label}` : ""}`, reason);

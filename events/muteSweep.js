@@ -1,4 +1,3 @@
-// Backs up the server-side mute: anything a muted user posts gets deleted.
 export default {
   event: "message_created",
   handler: async (payload, bot) => {
