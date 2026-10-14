@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_COOLDOWN = 3000;
 
-export const ROLES = ["user", "resident_dj", "bouncer", "manager", "cohost", "host"];
+export const ROLES = ["user", "vip", "resident_dj", "bouncer", "manager", "cohost", "host"];
 const RANKS = new Map(ROLES.map((role, index) => [role, index]));
 
 export const isRole = (role) => RANKS.has(role);

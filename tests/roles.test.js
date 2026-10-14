@@ -15,8 +15,8 @@ const quiet = () => {
   return () => { console.warn = real.warn; console.error = real.error; };
 };
 
-assert.deepEqual(ROLES, ["user", "resident_dj", "bouncer", "manager", "cohost", "host"], "the authority order is the documented one");
-assert.deepEqual(ROLES.map(actorRank), [0, 1, 2, 3, 4, 5], "ranks ascend with authority");
+assert.deepEqual(ROLES, ["user", "vip", "resident_dj", "bouncer", "manager", "cohost", "host"], "the authority order is the documented one");
+assert.deepEqual(ROLES.map(actorRank), [0, 1, 2, 3, 4, 5, 6], "ranks ascend with authority");
 ROLES.forEach((role) => assert.equal(isRole(role), true, `${role} is a role`));
 for (const junk of [...INVALID, null, undefined, 42, {}, []]) assert.equal(isRole(junk), false, `${String(junk)} is not a role`);
 
@@ -30,6 +30,9 @@ for (const minRole of ROLES)
     assert.equal(meetsRole({ name: "t", minRole }, role), ROLES.indexOf(role) >= ROLES.indexOf(minRole), `${role} vs a ${minRole} gate`);
 
 assert.equal(meetsRole({ minRole: "bouncer" }, "resident_dj"), false, "a resident dj is not a mod");
+assert.equal(meetsRole({ minRole: "user" }, "vip"), true, "a vip passes a user gate");
+assert.equal(meetsRole({ minRole: "bouncer" }, "vip"), false, "a vip is not a mod");
+assert.equal(meetsRole({ minRole: "vip" }, "user"), false, "a plain user does not pass a vip gate");
 assert.equal(meetsRole({ minRole: "bouncer" }, "bouncer"), true, "the gate includes the role it names");
 assert.equal(meetsRole({ minRole: "manager" }, "bouncer"), false, "a bouncer cannot ban");
 assert.equal(meetsRole({ minRole: "manager" }, "cohost"), true);
@@ -77,7 +80,7 @@ async function withCommandFile(name, source, check) {
 await withCommandFile("zz-bad-role.tmp.js", 'export default { name: "zzbadrole", minRole: "moderator", execute: () => "x" };', async () => {
   await assert.rejects(loadCommands(), (err) => {
     assert.match(err.message, /minRole "moderator" is not a role/, "the failure names the bad value");
-    assert.match(err.message, /user, resident_dj, bouncer, manager, cohost, host/, "and lists what is valid");
+    assert.match(err.message, /user, vip, resident_dj, bouncer, manager, cohost, host/, "and lists what is valid");
     return true;
   }, "an invalid minRole must stop the load");
 });
@@ -130,7 +133,7 @@ for (const role of ROLES) assert.doesNotThrow(() => makeBot({ platformRoles: { a
 
 {
   const bot = makeBot({ platformRoles: { ambassador: "bouncer" } });
-  for (const [id, role] of [["u", "user"], ["d", "resident_dj"], ["b", "bouncer"], ["m", "manager"], ["c", "cohost"], ["h", "host"], ["x", "moderator"]])
+  for (const [id, role] of [["u", "user"], ["v", "vip"], ["d", "resident_dj"], ["b", "bouncer"], ["m", "manager"], ["c", "cohost"], ["h", "host"], ["x", "moderator"]])
     bot.users.set(id, { userId: id, username: role, displayName: role, role, isBot: false });
   bot.users.set("bot", { userId: "bot", username: "thebot", displayName: "The Bot", role: "user", isBot: true });
 
@@ -139,6 +142,7 @@ for (const role of ROLES) assert.doesNotThrow(() => makeBot({ platformRoles: { a
     for (const targetRole of ROLES)
       assert.equal(canAct(senderRole, targetRole), ROLES.indexOf(targetRole) < ROLES.indexOf(senderRole), `${senderRole} acting on ${targetRole}`);
   assert.equal(canAct("host", "host"), false, "not even the host may act on a peer");
+  assert.equal(canAct("bouncer", "vip"), true, "a bouncer can act on a vip");
   assert.equal(canAct("bouncer", "moderator"), false, "a role we cannot rank is protected, not exposed");
   assert.equal(canAct("host", "moderator"), false, "protected from everyone, so nobody acts on what they cannot read");
   for (const senderRole of INVALID)
