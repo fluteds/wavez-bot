@@ -106,7 +106,7 @@ Every mod command takes an optional trailing reason, which is echoed in the repl
 | `!ban <user> [duration] [reason]` | | manager | Ban, optionally timed |
 | `!unban <user> [reason]` | | manager | Lift a ban |
 
-Roles ascend `user < resident_dj < bouncer < manager < cohost < host`. On top of `minRole`, no one can act on the bot, on a peer, or on anyone above them.
+Roles ascend `user < vip < resident_dj < bouncer < manager < cohost < host`. On top of `minRole`, no one can act on the bot, on a peer, or on anyone above them. A VIP has no moderation powers, since every moderation command needs bouncer, and bouncers and above can act on one.
 
 That list is the whole vocabulary. A `minRole` naming anything else stops the bot at startup with the offending file and the valid names, because the alternative is a gate that silently lets everyone through. A role the bot does not recognise on a *person* fails the other way: it grants nothing, and it cannot be kicked, banned, or muted by anyone, so a role renamed upstream never becomes an opening. It is logged once when first seen.
 
